@@ -1,0 +1,114 @@
+/* styles.css */
+
+/* Цвета */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #e74c3c;
+    --background-color: #f8f8f8;
+    --card-background-color: #fff;
+    --card-shadow: rgba(0, 0, 0, 0.1);
+    --card-shadow-hover: rgba(0, 0, 0, 0.2);
+    --text-color: #333;
+    --muted-color: #7f8c8d;
+  }
+  
+  /* Общие стили */
+  body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color);
+    color: var(--text-color);
+  }
+  
+  h1 {
+    text-align: center;
+    margin: 20px;
+    color: var(--text-color);
+  }
+  
+  /* Контейнер для товаров */
+  #products {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 карточки в строке по умолчанию */
+    gap: 20px;
+    padding: 20px;
+    justify-items: center;
+  }
+  
+  /* Карточка товара */
+  .product-card {
+    background-color: var(--card-background-color);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px var(--card-shadow);
+    width: 100%;
+    max-width: 300px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 15px var(--card-shadow-hover);
+  }
+  
+  .product-card h3 {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    color: var(--primary-color);
+  }
+  
+  .product-card p {
+    margin: 5px 0;
+    font-size: 1em;
+  }
+  
+  .product-card .price {
+    font-weight: bold;
+    color: var(--secondary-color);
+  }
+  
+  .product-card .categories {
+    font-style: italic;
+    color: var(--muted-color);
+  }
+  
+  /* Кнопка */
+  .product-card button {
+    background-color: var(--primary-color);
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .product-card button:hover {
+    background-color: #2980b9;
+  }
+  
+  /* Адаптивность */
+  @media (max-width: 768px) {
+    #products {
+      grid-template-columns: repeat(2, 1fr); /* 2 карточки на экранах среднего размера */
+    }
+  }
+  
+  @media (max-width: 480px) {
+    h1 {
+      font-size: 1.5em;
+    }
+  
+    /* Для мобильных устройств 1 карточка в строке */
+    #products {
+      grid-template-columns: 1fr; /* Одна карточка в строке */
+    }
+  
+    .product-card {
+      max-width: 100%;
+    }
+  }
+  

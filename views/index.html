@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Интернет-магазин</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Основные стили */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    #products {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr); /* Два столбца */
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .product-card {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+
+    .product-card:hover {
+      transform: scale(1.05);
+    }
+
+    .product-card h3 {
+      font-size: 1.2em;
+      color: #333;
+    }
+
+    .product-card p {
+      margin: 10px 0;
+      color: #555;
+    }
+
+    .product-card .price {
+      font-weight: bold;
+      color: #28a745;
+    }
+
+    .product-card button {
+      background-color: #007bff;
+      color: #fff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background-color 0.3s;
+    }
+
+    .product-card button:hover {
+      background-color: #0056b3;
+    }
+
+    #cart {
+      background-color: #fff;
+      padding: 15px;
+      margin-top: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    #cart p {
+      font-size: 1.2em;
+      color: #333;
+    }
+
+    #checkoutBtn {
+      background-color: #28a745;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background-color 0.3s;
+    }
+
+    #checkoutBtn:hover {
+      background-color: #218838;
+    }
+
+    /* Стиль для чата */
+    #chat-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    #chat-container h2 {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    #messages {
+      max-height: 250px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+      padding-right: 5px;
+    }
+
+    #messages div {
+      background-color: #f1f1f1;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+
+    #messageInput {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    #sendMessageBtn {
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    #sendMessageBtn:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Каталог товаров</h1>
+  
+  <!-- Контейнер для товаров -->
+  <div id="products"></div>
+
+  <!-- Корзина -->
+  <h2>Корзина</h2>
+  <div id="cart">
+    <p>В корзине: 0 товаров</p>
+    <button id="checkoutBtn">Перейти к оформлению</button>
+  </div>
+
+  <!-- Чат WebSocket -->
+  <div id="chat-container">
+    <h2>Чат с пользователями</h2>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Введите сообщение..." />
+    <button id="sendMessageBtn">Отправить</button>
+  </div>
+
+  <script>
+    // Функция для загрузки товаров
+    const fetchProducts = async () => {
+      const query = `
+        query {
+          products {
+            id
+            name
+            price
+            description
+            categories
+          }
+        }
+      `;
+
+      try {
+        const response = await fetch('/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+
+        const { data } = await response.json();
+        const productContainer = document.getElementById('products');
+        productContainer.innerHTML = '';
+
+        data.products.forEach(product => {
+          const productCard = document.createElement('div');
+          productCard.classList.add('product-card');
+          productCard.innerHTML = `
+            <h3>${product.name}</h3>
+            <p class="price">Цена: ${product.price}</p>
+            <p>Описание: ${product.description}</p>
+            <p class="categories">Категории: ${product.categories.join(', ')}</p>
+            <button onclick="addToCart(${product.id}, '${product.name}', ${product.price})">Добавить в корзину</button>
+          `;
+          productContainer.appendChild(productCard);
+        });
+      } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
+        window.location.href = '/503.html';
+      }
+    };
+
+    // Функция для добавления товара в корзину
+    const addToCart = (id, name, price) => {
+      const cart = JSON.parse(localStorage.getItem('cart')) || [];
+      const productIndex = cart.findIndex(item => item.id === id);
+
+      if (productIndex > -1) {
+        cart[productIndex].quantity += 1;
+      } else {
+        cart.push({ id, name, price, quantity: 1 });
+      }
+
+      localStorage.setItem('cart', JSON.stringify(cart));
+      updateCart();
+    };
+
+    // Функция для обновления корзины
+    const updateCart = () => {
+      const cart = JSON.parse(localStorage.getItem('cart')) || [];
+      const cartContainer = document.getElementById('cart');
+      const cartSummary = cart.reduce((summary, item) => {
+        summary.totalQuantity += item.quantity;
+        summary.totalPrice += item.price * item.quantity;
+        return summary;
+      }, { totalQuantity: 0, totalPrice: 0 });
+
+      cartContainer.querySelector('p').textContent = `В корзине: ${cartSummary.totalQuantity} товаров, на сумму: ${cartSummary.totalPrice} руб.`;
+    };
+
+    // Функция для оформления заказа
+    document.getElementById('checkoutBtn').addEventListener('click', () => {
+      const cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+      if (cart.length === 0) {
+        alert('Корзина пуста!');
+        return;
+      }
+
+      // Перенаправление на страницу оформления заказа (можно заменить на реальную логику)
+      alert('Перейти к оформлению заказа...');
+    });
+
+    // Загрузка товаров при загрузке страницы
+    window.addEventListener('load', fetchProducts);
+
+    // WebSocket подключение для чата
+    const socket = new WebSocket('ws://localhost:4000');
+    socket.onopen = () => {
+      console.log('Подключено к WebSocket серверу');
+    };
+
+    socket.onmessage = async (event) => {
+  try {
+    let messageData;
+    
+    // Проверяем, является ли сообщение объектом Blob
+    if (event.data instanceof Blob) {
+      const text = await event.data.text(); // Конвертируем Blob в текст
+      messageData = JSON.parse(text); // Парсим текст как JSON
+    } else {
+      messageData = JSON.parse(event.data); // Если это не Blob, сразу парсим как JSON
+    }
+
+    const messagesContainer = document.getElementById('messages');
+    const messageElement = document.createElement('div');
+    messageElement.textContent = `${messageData.username}: ${messageData.message}`;
+    messagesContainer.appendChild(messageElement);
+  } catch (error) {
+    console.error('Ошибка при обработке сообщения:', error);
+  }
+};
+
+
+    socket.onclose = () => {
+      console.log('Подключение закрыто');
+    };
+
+    socket.onerror = (error) => {
+      console.error('Ошибка WebSocket:', error);
+    };
+
+    // Отправка сообщения из чата
+    document.getElementById('sendMessageBtn').addEventListener('click', () => {
+      const messageInput = document.getElementById('messageInput');
+      const message = messageInput.value;
+
+      if (message.trim() === '') return;
+
+      const messageData = {
+        username: 'Админ',  // Здесь можно динамически брать имя пользователя
+        message: message
+      };
+
+      socket.send(JSON.stringify(messageData));
+      messageInput.value = ''; // Очистить поле ввода после отправки сообщения
+    });
+  </script>
+</body>
+</html>
