@@ -99,68 +99,92 @@
       background-color: #218838;
     }
 
-    /* Стиль для чата */
-    #chat-container {
+    #logoutBtn {
       position: fixed;
-      bottom: 20px;
+      top: 20px;
       right: 20px;
-      background-color: #fff;
-      border: 1px solid #ddd;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      width: 300px;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-
-    #chat-container h2 {
-      font-size: 1.2em;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    #messages {
-      max-height: 250px;
-      overflow-y: auto;
-      margin-bottom: 10px;
-      padding-right: 5px;
-    }
-
-    #messages div {
-      background-color: #f1f1f1;
-      padding: 8px;
-      border-radius: 4px;
-      margin-bottom: 5px;
-    }
-
-    #messageInput {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 10px;
-    }
-
-    #sendMessageBtn {
-      width: 100%;
-      background-color: #007bff;
+      background-color: #dc3545;
       color: white;
+      padding: 10px 20px;
       border: none;
       border-radius: 4px;
-      padding: 10px;
       cursor: pointer;
-      transition: background-color 0.3s;
+      font-size: 1em;
     }
 
-    #sendMessageBtn:hover {
-      background-color: #0056b3;
+    #logoutBtn:hover {
+      background-color: #c82333;
+    }
+
+    /* Стиль для модального окна */
+    #tokenModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    #tokenModalContent {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 300px;
+      text-align: center;
+    }
+
+    #closeModalBtn {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 1em;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    #closeModalBtn:hover {
+      background-color: #c82333;
+    }
+
+    /* Стиль для кнопки "Посмотреть токен" */
+    #viewTokenBtn {
+      background-color: #ffc107;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+      margin-top: 20px;
+    }
+
+    #viewTokenBtn:hover {
+      background-color: #e0a800;
     }
   </style>
 </head>
 <body>
+  <button id="logoutBtn">Выйти</button>
   <h1>Каталог товаров</h1>
-  
+
+  <!-- Кнопка для просмотра токена -->
+  <button id="viewTokenBtn">Посмотреть токен</button>
+
+  <!-- Модальное окно для отображения токена -->
+  <div id="tokenModal">
+    <div id="tokenModalContent">
+      <h3>Ваш токен:</h3>
+      <p id="tokenValue"></p>
+      <button id="closeModalBtn">Закрыть</button>
+    </div>
+  </div>
+
   <!-- Контейнер для товаров -->
   <div id="products"></div>
 
@@ -171,15 +195,31 @@
     <button id="checkoutBtn">Перейти к оформлению</button>
   </div>
 
-  <!-- Чат WebSocket -->
-  <div id="chat-container">
-    <h2>Чат с пользователями</h2>
-    <div id="messages"></div>
-    <input type="text" id="messageInput" placeholder="Введите сообщение..." />
-    <button id="sendMessageBtn">Отправить</button>
-  </div>
-
   <script>
+    // Проверка, авторизован ли пользователь
+    const isAuthenticated = localStorage.getItem('token'); // Пример проверки с использованием токена в localStorage
+
+    // Если пользователь не авторизован, перенаправляем на страницу логина
+    if (!isAuthenticated || isAuthenticated === 'null') {
+      window.location.href = '/login.html';
+    }
+
+    // Функция для отображения токена в модальном окне
+    document.getElementById('viewTokenBtn').addEventListener('click', () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        document.getElementById('tokenValue').textContent = token;
+        document.getElementById('tokenModal').style.display = 'flex';
+      } else {
+        alert('Токен не найден!');
+      }
+    });
+
+    // Закрытие модального окна
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+      document.getElementById('tokenModal').style.display = 'none';
+    });
+
     // Функция для загрузки товаров
     const fetchProducts = async () => {
       const query = `
@@ -201,25 +241,31 @@
           body: JSON.stringify({ query })
         });
 
-        const { data } = await response.json();
-        const productContainer = document.getElementById('products');
-        productContainer.innerHTML = '';
+        if (!response.ok) {
+          throw new Error('Ошибка ответа от сервера');
+        }
 
-        data.products.forEach(product => {
-          const productCard = document.createElement('div');
-          productCard.classList.add('product-card');
-          productCard.innerHTML = `
-            <h3>${product.name}</h3>
-            <p class="price">Цена: ${product.price}</p>
-            <p>Описание: ${product.description}</p>
-            <p class="categories">Категории: ${product.categories.join(', ')}</p>
-            <button onclick="addToCart(${product.id}, '${product.name}', ${product.price})">Добавить в корзину</button>
-          `;
-          productContainer.appendChild(productCard);
-        });
+        const { data } = await response.json();
+
+        if (data && Array.isArray(data.products)) {
+          const productContainer = document.getElementById('products');
+          productContainer.innerHTML = '';
+
+          data.products.forEach(product => {
+            const productCard = document.createElement('div');
+            productCard.classList.add('product-card');
+            productCard.innerHTML = `
+              <h3>${product.name}</h3>
+              <p class="price">Цена: ${product.price}</p>
+              <p>Описание: ${product.description}</p>
+              <p class="categories">Категории: ${product.categories.join(', ')}</p>
+              <button onclick="addToCart(${product.id}, '${product.name}', ${product.price})">Добавить в корзину</button>
+            `;
+            productContainer.appendChild(productCard);
+          });
+        }
       } catch (error) {
         console.error('Ошибка загрузки данных:', error);
-        window.location.href = '/503.html';
       }
     };
 
@@ -260,64 +306,18 @@
         return;
       }
 
-      // Перенаправление на страницу оформления заказа (можно заменить на реальную логику)
       alert('Перейти к оформлению заказа...');
     });
 
-    // Загрузка товаров при загрузке страницы
     window.addEventListener('load', fetchProducts);
 
-    // WebSocket подключение для чата
-    const socket = new WebSocket('ws://localhost:4000');
-    socket.onopen = () => {
-      console.log('Подключено к WebSocket серверу');
-    };
-
-    socket.onmessage = async (event) => {
-  try {
-    let messageData;
-    
-    // Проверяем, является ли сообщение объектом Blob
-    if (event.data instanceof Blob) {
-      const text = await event.data.text(); // Конвертируем Blob в текст
-      messageData = JSON.parse(text); // Парсим текст как JSON
-    } else {
-      messageData = JSON.parse(event.data); // Если это не Blob, сразу парсим как JSON
-    }
-
-    const messagesContainer = document.getElementById('messages');
-    const messageElement = document.createElement('div');
-    messageElement.textContent = `${messageData.username}: ${messageData.message}`;
-    messagesContainer.appendChild(messageElement);
-  } catch (error) {
-    console.error('Ошибка при обработке сообщения:', error);
-  }
-};
-
-
-    socket.onclose = () => {
-      console.log('Подключение закрыто');
-    };
-
-    socket.onerror = (error) => {
-      console.error('Ошибка WebSocket:', error);
-    };
-
-    // Отправка сообщения из чата
-    document.getElementById('sendMessageBtn').addEventListener('click', () => {
-      const messageInput = document.getElementById('messageInput');
-      const message = messageInput.value;
-
-      if (message.trim() === '') return;
-
-      const messageData = {
-        username: 'Пользователь',  // Здесь можно динамически брать имя пользователя
-        message: message
-      };
-
-      socket.send(JSON.stringify(messageData));
-      messageInput.value = ''; // Очистить поле ввода после отправки сообщения
+    // Логика выхода из аккаунта
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = '/login.html';
     });
+
+    updateCart();
   </script>
 </body>
 </html>

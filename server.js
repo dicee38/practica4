@@ -4,11 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const mainPort = 3000;
 const adminPort = 8080;
 const wsPort = 4000;
+
+const secretKey = 'your-secret-key'; // Токен секрет
 
 // Указываем пути для главной страницы и страницы админки
 const mainPagePath = path.join(__dirname, 'views');
@@ -27,19 +31,87 @@ adminApp.use('/admin', express.static(adminPagePath));
 mainApp.use(cors());
 adminApp.use(cors());
 
+// Парсинг JSON для тела запроса
+mainApp.use(express.json());
+adminApp.use(express.json());
+
+// Данные пользователей (для простоты храним их в памяти, можно использовать БД)
+const users = [
+  { id: 1, username: 'admin', password: '$2a$10$KcJ7vZmjj6tX8KD.Dq8OFO8U4AfGbgav3Zg1ujE5l8lHwvM7H4kaK' } // Пароль: admin123
+];
+
+// Функция для генерации токена
+const generateToken = (user) => {
+  return jwt.sign({ id: user.id, username: user.username }, secretKey, { expiresIn: '1h' });
+};
+
+// Авторизация
+const authenticateToken = (req, res, next) => {
+  const token = req.header('Authorization')?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).send('Необходима авторизация');
+  }
+
+  jwt.verify(token, secretKey, (err, user) => {
+    if (err) {
+      return res.status(403).send('Не действительный токен');
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Маршруты для авторизации
+mainApp.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  const user = users.find(u => u.username === username);
+
+  if (!user) {
+    return res.status(404).send('Пользователь не найден');
+  }
+
+  bcrypt.compare(password, user.password, (err, result) => {
+    if (err || !result) {
+      return res.status(403).send('Неверный пароль');
+    }
+    const token = generateToken(user);
+    res.json({ token });
+  });
+});
+
+mainApp.post('/api/auth/register', (req, res) => {  // Добавили /api/auth/
+  const { username, password } = req.body;
+
+  if (users.some(u => u.username === username)) {
+      return res.status(400).send('Пользователь с таким именем уже существует');
+  }
+
+  bcrypt.hash(password, 10, (err, hashedPassword) => {
+      if (err) {
+          return res.status(500).send('Ошибка регистрации');
+      }
+      const newUser = { id: users.length + 1, username, password: hashedPassword };
+      users.push(newUser);
+      const token = generateToken(newUser);
+      res.status(201).json({ token });
+  });
+});
+
+
 // Главная страница
 mainApp.get('/', (req, res) => {
   res.sendFile(path.join(mainPagePath, 'index.html'));
 });
 
-// Страница администратора
+// Страница администратора с защитой
 adminApp.get('/', (req, res) => {
-  res.sendFile(path.join(adminPagePath, 'admin.html'));
+  res.sendFile(path.join(adminPagePath, '..', 'admin-panel', 'admin.html'));
 });
 
 const productsFilePath = path.join(__dirname, 'data', 'products.json');
 
-// GraphQL схема
+// Схема GraphQL
 const typeDefs = gql`
   type Product {
     id: ID!
@@ -70,6 +142,7 @@ const typeDefs = gql`
   }
 `;
 
+// Резолверы для GraphQL
 const resolvers = {
   Query: {
     products: () => {
@@ -122,7 +195,7 @@ const resolvers = {
       let products = JSON.parse(data);
       products = products.filter(p => p.id !== parseInt(id));
       fs.writeFileSync(productsFilePath, JSON.stringify(products, null, 2));
-      return "Product deleted successfully"; // Возвращаем просто строку
+      return "Product deleted successfully"; 
     },
   },
   Subscription: {
@@ -137,7 +210,7 @@ const server = new ApolloServer({
   typeDefs, 
   resolvers, 
   context: ({ req }) => {
-    return { pubsub: pubsub };  // Передача pubsub в контекст
+    return { pubsub: pubsub };  
   }
 });
 
@@ -166,14 +239,12 @@ wsServer.on('connection', ws => {
   console.log('Пользователь подключился');
   
   ws.on('message', message => {
-    // Рассылаем сообщение всем подключенным клиентам
     wsServer.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
       }
     });
     
-    // Публикуем сообщение через pubsub
     const messageData = JSON.parse(message);
     pubsub.publish("MESSAGE_ADDED", { messageAdded: messageData });
   });

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход и Регистрация</title>
+  <style>
+    /* Основные стили */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    h2 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    form {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #28a745;
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      width: 100%;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    .link {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .link a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .link a:hover {
+      text-decoration: underline;
+    }
+
+    /* Дополнительные стили для адаптивности */
+    @media (max-width: 600px) {
+      form {
+        padding: 20px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      button {
+        font-size: 14px;
+      }
+    }
+  </style>
+  <script>
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        alert('Пожалуйста, заполните все поля');
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:3000/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('token', data.token); // Сохраняем токен
+          alert('Вход выполнен!');
+          window.location.href = '/'; // Редирект на главную страницу
+        } else {
+          // Обработка ошибок входа
+          switch (data.error) {
+            case 'USER_NOT_FOUND':
+              alert('Ошибка: Пользователь не найден');
+              break;
+            case 'INVALID_PASSWORD':
+              alert('Ошибка: Неверный пароль');
+              break;
+            case 'USER_DISABLED':
+              alert('Ошибка: Учетная запись заблокирована');
+              break;
+            default:
+              alert('Ошибка: Неверные учетные данные');
+          }
+        }
+      } catch (error) {
+        // Обработка ошибок сети
+        if (error.name === 'TypeError') {
+          alert('Ошибка сети. Проверьте ваше соединение или попробуйте позже.');
+        } else {
+          alert('Ошибка сервера. Попробуйте позже.');
+        }
+      }
+    }
+
+    function redirectToRegister() {
+      window.location.href = '/Register.html';  // Переход на страницу регистрации
+    }
+  </script>
+</head>
+<body>
+  <h2>Вход</h2>
+  <form onsubmit="event.preventDefault(); login();">
+    <input type="text" id="username" placeholder="Имя пользователя" required><br>
+    <input type="password" id="password" placeholder="Пароль" required><br>
+    <button type="submit">Войти</button>
+  </form>
+
+  <div class="link">
+    <p>Нет аккаунта? <a href="javascript:void(0);" onclick="redirectToRegister();">Зарегистрируйтесь</a></p>
+  </div>
+</body>
+</html>
